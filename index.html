@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobius Chess</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Import map for Three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+    <div id="ui-container">
+        <h1>Mobius Chess</h1>
+        <div id="status">White to move</div>
+        <div id="captured-container">
+            <div id="captured-black"></div>
+            <div id="captured-white"></div>
+        </div>
+    </div>
+    <div id="promotion-modal" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #222; padding: 2rem; border-radius: 1rem; text-align: center; z-index: 100; box-shadow: 0 0 20px rgba(0,0,0,0.8); border: 1px solid #444;">
+        <h2 style="margin-bottom: 1rem; font-size: 1.5rem;">Promote Pawn</h2>
+        <div style="display: flex; gap: 1rem; justify-content: center;">
+            <button id="btn-queen" style="font-size: 1.5rem; padding: 0.5rem 1rem; cursor: pointer; background: #333; color: white; border: 1px solid #555; border-radius: 0.5rem; transition: background 0.2s;">Queen</button>
+            <button id="btn-knight" style="font-size: 1.5rem; padding: 0.5rem 1rem; cursor: pointer; background: #333; color: white; border: 1px solid #555; border-radius: 0.5rem; transition: background 0.2s;">Knight</button>
+        </div>
+    </div>
+    
+    <button id="help-btn" style="position: absolute; bottom: 2rem; right: 2rem; width: 3rem; height: 3rem; border-radius: 50%; background: #3b82f6; color: white; font-size: 1.5rem; font-weight: bold; border: none; cursor: pointer; z-index: 50; box-shadow: 0 4px 12px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;">?</button>
+    
+    <div id="help-modal" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #222; padding: 2rem; border-radius: 1rem; text-align: left; z-index: 100; box-shadow: 0 0 20px rgba(0,0,0,0.8); border: 1px solid #444; max-width: 500px; color: #f5f5f5;">
+        <h2 style="margin-bottom: 1rem; font-size: 1.5rem;">How to Play Mobius Chess</h2>
+        <p style="margin-bottom: 0.5rem; line-height: 1.5;">Welcome to Mobius Chess! The board is twisted into a continuous 3D loop.</p>
+        <ul style="margin-bottom: 1rem; margin-left: 1.5rem; line-height: 1.5;">
+            <li><b>Topology:</b> Moving off the "top" of the board seamlessly wraps you back around to the "bottom" on the other side.</li>
+            <li><b>Controls:</b> Click and drag the background to tumble/orbit the 3D board freely. Scroll to zoom.</li>
+            <li><b>Movement:</b> Click a piece to see its valid moves, then click a highlighted square to move.</li>
+            <li><b>Rules:</b> Standard chess rules apply! The engine enforces checks, checkmates, stalemates, and pawn promotion (reaches exactly 6 steps forward).</li>
+        </ul>
+        <div style="text-align: center;">
+            <button id="close-help-btn" style="font-size: 1.25rem; padding: 0.5rem 1.5rem; cursor: pointer; background: #333; color: white; border: 1px solid #555; border-radius: 0.5rem;">Got it!</button>
+        </div>
+    </div>
+    <script type="module" src="main.js"></script>
+</body>
+</html>
