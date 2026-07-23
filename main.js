@@ -124,14 +124,18 @@ function createSquareGeometry(r, c) {
     const vertices = [];
     const indices = [];
     const normals = [];
+    const uvs = [];
     
     for (let i = 0; i <= thetaSegments; i++) {
-        const theta = thetaStart + (i / thetaSegments) * (thetaEnd - thetaStart);
+        const u = i / thetaSegments;
+        const theta = thetaStart + u * (thetaEnd - thetaStart);
         for (let j = 0; j <= wSegments; j++) {
-            const w = wStart + (j / wSegments) * (wEnd - wStart);
+            const v = j / wSegments;
+            const w = wStart + v * (wEnd - wStart);
             const pt = getMobiusPoint(theta, w, T/2);
             vertices.push(pt.pos.x, pt.pos.y, pt.pos.z);
             normals.push(pt.normal.x, pt.normal.y, pt.normal.z);
+            uvs.push(u, v);
         }
     }
     
@@ -149,31 +153,63 @@ function createSquareGeometry(r, c) {
     
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
     geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     geometry.setIndex(indices);
     
     return geometry;
 }
 
-function createBoard() {
-    const matWhite = new THREE.MeshStandardMaterial({ 
-        color: 0xeeeeee, // Brighter white squares
-        roughness: 0.3, 
-        metalness: 0.1 
-    });
-    const matBlack = new THREE.MeshStandardMaterial({ 
-        color: 0x444444, // Neutral dark grey
-        roughness: 0.4, 
-        metalness: 0.1 
-    });
+function createSquareCanvasTexture(r, c, isWhite) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
 
+    // Fill background with square base color
+    ctx.fillStyle = isWhite ? '#eeeeee' : '#444444';
+    ctx.fillRect(0, 0, 256, 256);
+
+    // Subtle inner border for square boundary definition
+    ctx.strokeStyle = isWhite ? '#cccccc' : '#333333';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(3, 3, 250, 250);
+
+    // Write coordinate text on the corner of the square
+    const text = `(${r},${c})`;
+    ctx.font = 'bold 36px monospace, sans-serif';
+    
+    const x = 14;
+    const y = 14;
+    
+    // High contrast backdrop for maximum clarity
+    ctx.fillStyle = isWhite ? 'rgba(0, 0, 0, 0.08)' : 'rgba(0, 0, 0, 0.35)';
+    const textMetrics = ctx.measureText(text);
+    ctx.fillRect(x - 4, y - 4, textMetrics.width + 12, 44);
+
+    ctx.fillStyle = isWhite ? '#111111' : '#ffffff';
+    ctx.textBaseline = 'top';
+    ctx.textAlign = 'left';
+    ctx.fillText(text, x, y);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    return texture;
+}
+
+function createBoard() {
     for (let r = 0; r < 16; r++) {
         for (let c = 0; c < 4; c++) {
             const geo = createSquareGeometry(r, c);
-            
-            // Standard chessboard pattern
-            // To make sure pattern matches across seams, check r+c
             const isWhite = (r + c) % 2 === 0;
-            const mesh = new THREE.Mesh(geo, isWhite ? matWhite.clone() : matBlack.clone());
+            const texture = createSquareCanvasTexture(r, c, isWhite);
+            
+            const mat = new THREE.MeshStandardMaterial({ 
+                map: texture,
+                roughness: isWhite ? 0.3 : 0.4, 
+                metalness: 0.1 
+            });
+            
+            const mesh = new THREE.Mesh(geo, mat);
             mesh.userData = { r, c };
             scene.add(mesh);
             squares.push(mesh);
