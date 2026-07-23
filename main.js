@@ -26,6 +26,7 @@ function init() {
 
     document.getElementById('btn-queen').addEventListener('click', () => promotePawn('Q'));
     document.getElementById('btn-knight').addEventListener('click', () => promotePawn('N'));
+    document.getElementById('undo-btn').addEventListener('click', undoMove);
     
     document.getElementById('help-btn').addEventListener('click', () => {
         document.getElementById('help-modal').style.display = 'block';
@@ -351,7 +352,9 @@ function createPiece(type, color, r, c, dir) {
     positionPiece(group, r, c, dir);
     
     scene.add(group);
-    pieces.push({ mesh: group, type, color, r, c, dir });
+    const pieceObj = { mesh: group, type, color, r, c, dir };
+    pieces.push(pieceObj);
+    return pieceObj;
 }
 
 function positionPiece(mesh, r, c, dir) {
@@ -475,11 +478,19 @@ function getPseudoLegalMoves(piece, state = pieces) {
         }
     }
     
-    const { type, r, c, dir } = piece;
+    const { type, color, r, c, dir } = piece;
     
     if (type === 'P') {
         const tr = r + dir;
-        addMove(tr, c, false, true); // Forward move
+        const clearForward = addMove(tr, c, false, true); // Forward 1 step
+        
+        const isStartingRank = (color === 'white' && ((r === 6 && dir === -1) || (r === 9 && dir === 1))) ||
+                               (color === 'black' && ((r === 14 && dir === -1) || (r === 1 && dir === 1)));
+        
+        if (clearForward && isStartingRank) {
+            addMove(r + 2 * dir, c, false, true); // Forward 2 steps on initial move
+        }
+
         addMove(tr, c - 1, true, false); // Capture left
         addMove(tr, c + 1, true, false); // Capture right
     }
@@ -589,18 +600,31 @@ function deselectAll() {
 
 let capturedWhite = [];
 let capturedBlack = [];
+const moveHistory = [];
+let pendingPromotionSnapshot = null;
 
 const pieceSymbols = {
     white: { 'P': '♙', 'R': '♖', 'N': '♘', 'B': '♗', 'Q': '♕', 'K': '♔' },
     black: { 'P': '♟', 'R': '♜', 'N': '♞', 'B': '♝', 'Q': '♛', 'K': '♚' }
 };
 
+function updateUndoButton() {
+    const btn = document.getElementById('undo-btn');
+    if (btn) {
+        btn.disabled = (moveHistory.length === 0 && !pendingPromotionSnapshot);
+    }
+}
+
 function tryMove(piece, targetR, targetC) {
     const isValid = validMoves.some(m => m.r === targetR && m.c === targetC);
     if (!isValid) return;
 
-    // IMPORTANT: Clear validMoves IMMEDIATELY so double-clicks can't re-trigger
+    // Clear validMoves IMMEDIATELY so double-clicks can't re-trigger
     validMoves = [];
+
+    const fromR = piece.r;
+    const fromC = piece.c;
+    let capturedPiece = null;
 
     const targetPieceIdx = pieces.findIndex(p => p.r === targetR && p.c === targetC);
     if (targetPieceIdx !== -1) {
@@ -608,6 +632,7 @@ function tryMove(piece, targetR, targetC) {
         
         // Ensure we only capture opponent pieces (sanity check)
         if (targetPiece.color !== piece.color) {
+            capturedPiece = targetPiece;
             scene.remove(targetPiece.mesh);
             
             if (targetPiece.color === 'white') {
@@ -626,6 +651,8 @@ function tryMove(piece, targetR, targetC) {
     piece.r = targetR;
     piece.c = targetC;
     positionPiece(piece.mesh, piece.r, piece.c, piece.dir);
+
+    const previousTurn = currentTurn;
     
     // Pawn promotion
     if (piece.type === 'P') {
@@ -635,11 +662,33 @@ function tryMove(piece, targetR, targetC) {
         };
         if (opponentBackRanks[piece.color].includes(piece.r)) {
             promotingPiece = piece;
+            pendingPromotionSnapshot = {
+                piece,
+                fromR,
+                fromC,
+                toR: targetR,
+                toC: targetC,
+                capturedPiece,
+                previousTurn,
+                promotedPiece: null
+            };
             document.getElementById('promotion-modal').style.display = 'block';
+            updateUndoButton();
             return;
         }
     }
     
+    moveHistory.push({
+        piece,
+        fromR,
+        fromC,
+        toR: targetR,
+        toC: targetC,
+        capturedPiece,
+        previousTurn,
+        promotedPiece: null
+    });
+
     finishTurn();
 }
 
@@ -671,6 +720,8 @@ function finishTurn() {
     } else {
         document.getElementById('status').innerText = `${currentTurn.charAt(0).toUpperCase() + currentTurn.slice(1)} to move`;
     }
+
+    updateUndoButton();
 }
 
 function promotePawn(newType) {
@@ -678,14 +729,107 @@ function promotePawn(newType) {
     
     scene.remove(promotingPiece.mesh);
     const pieceIdx = pieces.findIndex(p => p === promotingPiece);
-    pieces.splice(pieceIdx, 1);
+    if (pieceIdx !== -1) {
+        pieces.splice(pieceIdx, 1);
+    }
     
-    createPiece(newType, promotingPiece.color, promotingPiece.r, promotingPiece.c, promotingPiece.dir);
+    const promotedPieceObj = createPiece(newType, promotingPiece.color, promotingPiece.r, promotingPiece.c, promotingPiece.dir);
+    
+    if (pendingPromotionSnapshot) {
+        pendingPromotionSnapshot.promotedPiece = promotedPieceObj;
+        moveHistory.push(pendingPromotionSnapshot);
+        pendingPromotionSnapshot = null;
+    }
     
     promotingPiece = null;
     document.getElementById('promotion-modal').style.display = 'none';
     
     finishTurn();
+}
+
+function undoMove() {
+    // 1. If currently waiting for pawn promotion selection, cancel promotion & revert pawn move
+    if (pendingPromotionSnapshot) {
+        const snap = pendingPromotionSnapshot;
+        pendingPromotionSnapshot = null;
+        promotingPiece = null;
+        document.getElementById('promotion-modal').style.display = 'none';
+
+        snap.piece.r = snap.fromR;
+        snap.piece.c = snap.fromC;
+        positionPiece(snap.piece.mesh, snap.piece.r, snap.piece.c, snap.piece.dir);
+
+        if (snap.capturedPiece) {
+            scene.add(snap.capturedPiece.mesh);
+            pieces.push(snap.capturedPiece);
+            positionPiece(snap.capturedPiece.mesh, snap.capturedPiece.r, snap.capturedPiece.c, snap.capturedPiece.dir);
+
+            if (snap.capturedPiece.color === 'white') {
+                capturedWhite.pop();
+                document.getElementById('captured-white').innerText = capturedWhite.map(t => pieceSymbols.white[t]).join(' ');
+            } else {
+                capturedBlack.pop();
+                document.getElementById('captured-black').innerText = capturedBlack.map(t => pieceSymbols.black[t]).join(' ');
+            }
+        }
+
+        currentTurn = snap.previousTurn;
+        deselectAll();
+        updateUndoButton();
+        return;
+    }
+
+    if (moveHistory.length === 0) return;
+
+    const snap = moveHistory.pop();
+
+    // 2. Undo pawn promotion if move resulted in promotion
+    if (snap.promotedPiece) {
+        scene.remove(snap.promotedPiece.mesh);
+        const pIdx = pieces.findIndex(p => p === snap.promotedPiece);
+        if (pIdx !== -1) {
+            pieces.splice(pIdx, 1);
+        }
+
+        snap.piece.r = snap.fromR;
+        snap.piece.c = snap.fromC;
+        snap.piece.type = 'P';
+        scene.add(snap.piece.mesh);
+        pieces.push(snap.piece);
+        positionPiece(snap.piece.mesh, snap.piece.r, snap.piece.c, snap.piece.dir);
+    } else {
+        // 3. Normal move revert
+        snap.piece.r = snap.fromR;
+        snap.piece.c = snap.fromC;
+        positionPiece(snap.piece.mesh, snap.piece.r, snap.piece.c, snap.piece.dir);
+    }
+
+    // 4. Restore captured piece
+    if (snap.capturedPiece) {
+        scene.add(snap.capturedPiece.mesh);
+        pieces.push(snap.capturedPiece);
+        positionPiece(snap.capturedPiece.mesh, snap.capturedPiece.r, snap.capturedPiece.c, snap.capturedPiece.dir);
+
+        if (snap.capturedPiece.color === 'white') {
+            capturedWhite.pop();
+            document.getElementById('captured-white').innerText = capturedWhite.map(t => pieceSymbols.white[t]).join(' ');
+        } else {
+            capturedBlack.pop();
+            document.getElementById('captured-black').innerText = capturedBlack.map(t => pieceSymbols.black[t]).join(' ');
+        }
+    }
+
+    currentTurn = snap.previousTurn;
+    deselectAll();
+
+    // Recalculate turn & check status
+    if (isCheck(currentTurn)) {
+        document.getElementById('status').innerText = `${currentTurn.charAt(0).toUpperCase() + currentTurn.slice(1)} to move (CHECK)`;
+    } else {
+        document.getElementById('status').innerText = `${currentTurn.charAt(0).toUpperCase() + currentTurn.slice(1)} to move`;
+    }
+
+    updateUndoButton();
 }
 
 init();

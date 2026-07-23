@@ -1,9 +1,9 @@
 :root {
     --bg-color: #0f172a;
     --text-primary: #f8fafc;
-    --accent: #3b82f6;
-    --glass-bg: rgba(15, 23, 42, 0.6);
-    --glass-border: rgba(255, 255, 255, 0.1);
+    --text-secondary: #cbd5e1;
+    --accent-blue: #60a5fa;
+    --accent-purple: #c084fc;
 }
 
 * {
@@ -21,36 +21,173 @@ body {
     height: 100vh;
 }
 
+/* Completely transparent floating top-left UI overlay */
 #ui-container {
     position: absolute;
     top: 2rem;
     left: 2rem;
     z-index: 10;
-    background: var(--glass-bg);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid var(--glass-border);
-    padding: 1.5rem 2rem;
-    border-radius: 1rem;
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-    pointer-events: none; /* Let clicks pass through to the 3D scene */
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: none;
+    padding: 0;
+    box-shadow: none;
+    pointer-events: none; /* Let clicks pass through to 3D scene */
     user-select: none;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
 }
 
 h1 {
-    font-size: 1.5rem;
-    font-weight: 700;
-    letter-spacing: -0.025em;
-    margin-bottom: 0.5rem;
-    background: linear-gradient(135deg, #60a5fa, #c084fc);
+    font-size: 2.2rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin-bottom: 0.35rem;
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.7));
 }
 
 #status {
-    font-size: 1rem;
-    color: #cbd5e1;
-    font-weight: 500;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+    font-weight: 600;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+    margin-bottom: 0.4rem;
+}
+
+#captured-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    font-size: 1.5rem;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+    margin-bottom: 0.5rem;
+}
+
+/* Prominent, theme-matching gradient Undo Button */
+#undo-btn {
+    pointer-events: auto;
+    margin-top: 0.5rem;
+    padding: 0.65rem 1.4rem;
+    background: linear-gradient(135deg, rgba(96, 165, 250, 0.18), rgba(192, 132, 252, 0.18));
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 0.95rem;
+    border: 1.5px solid rgba(192, 132, 252, 0.4);
+    border-radius: 2rem;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+#undo-btn svg {
+    stroke: var(--accent-blue);
+    transition: transform 0.25s ease, stroke 0.25s ease;
+}
+
+#undo-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.35);
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: none;
+}
+
+#undo-btn:disabled svg {
+    stroke: rgba(255, 255, 255, 0.35);
+}
+
+#undo-btn:not(:disabled):hover {
+    background: linear-gradient(135deg, rgba(96, 165, 250, 0.35), rgba(192, 132, 252, 0.35));
+    border-color: rgba(192, 132, 252, 0.8);
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(192, 132, 252, 0.4);
+}
+
+#undo-btn:not(:disabled):hover svg {
+    transform: rotate(-35deg);
+    stroke: var(--accent-purple);
+}
+
+#undo-btn:not(:disabled):active {
+    transform: translateY(0);
+}
+
+/* Gradient Question Mark Help Button on Bottom Left */
+#help-btn {
+    position: absolute;
+    bottom: 2rem;
+    left: 2rem;
+    z-index: 50;
+    pointer-events: auto;
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 50%;
+    background: rgba(15, 23, 42, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1.5px solid rgba(192, 132, 252, 0.4);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.help-question-mark {
+    font-size: 2rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    user-select: none;
+    line-height: 1;
+}
+
+#help-btn:hover {
+    background: rgba(30, 41, 59, 0.85);
+    border-color: rgba(192, 132, 252, 0.8);
+    transform: scale(1.1);
+    box-shadow: 0 10px 28px rgba(192, 132, 252, 0.4);
+}
+
+/* Modals */
+#help-modal, #promotion-modal {
+    background: rgba(15, 23, 42, 0.88) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border: 1.5px solid rgba(192, 132, 252, 0.35) !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8) !important;
+}
+
+.modal-btn {
+    font-size: 1.1rem;
+    padding: 0.6rem 1.4rem;
+    cursor: pointer;
+    background: linear-gradient(135deg, rgba(96, 165, 250, 0.2), rgba(192, 132, 252, 0.2));
+    color: white;
+    border: 1px solid rgba(192, 132, 252, 0.4);
+    border-radius: 0.6rem;
+    transition: all 0.2s ease;
+}
+
+.modal-btn:hover {
+    background: linear-gradient(135deg, rgba(96, 165, 250, 0.4), rgba(192, 132, 252, 0.4));
+    border-color: rgba(192, 132, 252, 0.8);
+    transform: translateY(-1px);
 }
 
 canvas {
